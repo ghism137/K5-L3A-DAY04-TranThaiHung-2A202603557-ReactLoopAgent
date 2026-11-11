@@ -45,6 +45,10 @@ class Provider:
         if self.name == 'anthropic':
             return self._anthropic(messages, schemas)
         payload = {'model': self.model, 'messages': messages}
+        # Reasoning models (vd gpt-6-luna) chỉ cho dùng tools qua Chat Completions khi effort='none'.
+        effort = os.getenv('REASONING_EFFORT')
+        if effort:
+            payload['reasoning_effort'] = effort
         if schemas:
             payload['tools'] = schemas
         data = post_json(self.url, {'Authorization': f'Bearer {self.key}'}, payload)
