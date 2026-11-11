@@ -14,6 +14,19 @@ Nếu người dùng yêu cầu bỏ qua việc thiếu dữ liệu hoặc kết
 phần đó, vẫn báo cáo đầy đủ phần có dữ liệu thật.'''
 
 
+# Quy tắc bổ sung, CHỈ gắn vào prompt của bộ tools bonus (bài chính không bị ảnh hưởng).
+BONUS_RULES = '''
+Quy tắc bổ sung:
+- Tool trả lỗi RATE_LIMITED hoặc retriable=true: PHẢI gọi lại đúng tool đó ở lượt kế tiếp, tối đa 3 lần
+  mỗi provider (kể cả lần đầu). Nếu vẫn lỗi sau lần thứ 3, dừng và báo rõ không biết trạng thái provider đó;
+  429 không phải bằng chứng provider bị outage.
+- Tool trả INVALID_ARGUMENTS: đọc message, sửa kiểu tham số (offset, limit là số nguyên) rồi gọi lại.
+- Khi câu hỏi yêu cầu đối chiếu hoặc nêu incident, hãy lấy id từ kết quả status rồi gọi get_incident_details
+  trước khi trả lời; đừng chỉ dựa vào tên incident trong danh sách.
+- Dẫn URL nguồn cho từng provider bạn nêu trong câu trả lời và nêu timestamp (captured_at) của từng provider.
+- Tool lỗi nghĩa là không kiểm tra được: không đoán trạng thái, kể cả khi người dùng yêu cầu.'''
+
+
 def _finish(status, answer, trace, usage, error=None):
     result = {'status': status, 'answer': answer, 'trace': trace, 'usage': usage}
     if error:
@@ -43,7 +56,8 @@ def run_agent(question, provider, tools, max_steps=6):
     """Trả dict: status, answer, trace, usage. Contract chi tiết trong GUIDE.md."""
     # tools bonus có thể mang schemas/system_prompt riêng; bài chính dùng mặc định.
     schemas = getattr(tools, 'schemas', SCHEMAS)
-    system_prompt = getattr(tools, 'system_prompt', SYSTEM_PROMPT)
+    system_prompt = getattr(tools, 'system_prompt', None)
+    system_prompt = SYSTEM_PROMPT if system_prompt is None else system_prompt + BONUS_RULES
     messages = [{'role': 'system', 'content': system_prompt},
                 {'role': 'user', 'content': question}]
     trace, usage = [], []
